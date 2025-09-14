@@ -1,20 +1,30 @@
-import os
-import numpy as np
+from fastapi import FastAPI, File, UploadFile
+from fastapi.responses import JSONResponse
 from PIL import Image
+import numpy as np
 import tensorflow as tf
-from tensorflow.keras.applications.efficientnet import preprocess_input  # pyright: ignore[reportMissingImports]
+from tensorflow.keras.applications.efficientnet import preprocess_input
 import scipy.stats
+import io
+import uvicorn
+import os
 
+app = FastAPI()
+
+# ----------------------
 # Load model
+# ----------------------
 MODEL_PATH = "disaster_classifier.keras"
 
 if not os.path.exists(MODEL_PATH):
     raise FileNotFoundError(f"❌ Model file not found: '{MODEL_PATH}'")
 
-model = tf.keras.models.load_model(MODEL_PATH)
-print("✅ Model loaded successfully.")
+model = tf.keras.models.load_model(MODEL_PATH, compile=False, safe_mode=False)
+print("✅ Model loaded successfully:", model.input_shape)
 
+# ----------------------
 # Class labels
+# ----------------------
 CLASS_NAMES = [
     "damaged_buildings",
     "fallen_trees",
@@ -27,43 +37,59 @@ CLASS_NAMES = [
     "sea",
 ]
 
-def predict_image(img_path, threshold=0.7, entropy_threshold=1.0):
-    # Load image
-    img = Image.open(img_path)
+IMG_SIZE = model.input_shape[1]  # Usually 224
 
-    # Ensure RGB
-    if img.mode != "RGB":
-        img = img.convert("RGB")
-
-    # Resize
-    img = img.resize((224, 224))
-
-    # Convert to array and preprocess
-    arr = np.array(img)
-    if arr.shape[-1] != 3:
-        arr = np.stack([arr]*3, axis=-1)  # Just in case
-    arr = arr[None, ...]  # Add batch dimension
+# ----------------------
+# Helper function
+# ----------------------
+def preprocess_image(img_bytes):
+    """Load image bytes → RGB → resize → numpy array → EfficientNet preprocess"""
+    img = Image.open(io.BytesIO(img_bytes)).convert("RGB")  # Force 3 channels
+    img = img.resize((IMG_SIZE, IMG_SIZE))
+    arr = np.array(img)[None, ...]  # Shape: (1, IMG_SIZE, IMG_SIZE, 3)
     arr = preprocess_input(arr)
+    return arr
 
-    # Predict
+def predict_image_from_bytes(img_bytes, threshold=0.7, entropy_threshold=1.0):
+    arr = preprocess_image(img_bytes)
+    
     preds = model.predict(arr, verbose=0)[0]
-
-    # Entropy
     entropy = float(scipy.stats.entropy(preds))
-    print(f"Prediction entropy: {entropy:.3f}")
-
     top_idx = int(np.argmax(preds))
     confidence = float(preds[top_idx])
     label = CLASS_NAMES[top_idx]
 
     if confidence < threshold or entropy > entropy_threshold:
-        print(f"⚠️ No disaster detected ")
-        return "no_disaster_detected", confidence
+        return {
+            "label": "no_disaster_detected",
+            "confidence": confidence,
+            "entropy": entropy,
+            "accepted": False
+        }
 
-    pretty_label = label.replace("_", " ").title()
-    print(f"✅ Prediction → {pretty_label} ({confidence:.2%} confidence)")
-    return label, confidence
-# === Test the prediction ===
+    return {
+        "label": label,
+        "confidence": confidence,
+        "entropy": entropy,
+        "accepted": True
+    }
+
+# ----------------------
+# FastAPI endpoint
+# ----------------------
+@app.post("/predict")
+async def predict(file: UploadFile = File(...)):
+    try:
+        img_bytes = await file.read()
+        result = predict_image_from_bytes(img_bytes)
+        print("✅ Prediction result:", result)  # Render logs me dikhai dega
+        return JSONResponse(content=result)
+    except Exception as e:
+        print("❌ Error:", str(e))
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+# ----------------------
+# Optional local run
+# ----------------------
 # if __name__ == "__main__":
-#     image_path = "flagged/din.jpg"  
-#     label, conf = predict_image(image_path)
+#     uvicorn.run(app, host="0.0.0.0", port=8000)
