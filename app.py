@@ -1,20 +1,18 @@
-from fastapi import FastAPI, File, UploadFile
-from fastapi.responses import JSONResponse
-from PIL import Image
+import os
 import numpy as np
+from PIL import Image
 import tensorflow as tf
-from tensorflow.keras.applications.efficientnet import preprocess_input
+from tensorflow.keras.applications.efficientnet import preprocess_input  # pyright: ignore[reportMissingImports]
 import scipy.stats
-import io
-import uvicorn
-
-app = FastAPI()
 
 # Load model
-IMG_SIZE = 224
 MODEL_PATH = "disaster_classifier.keras"
-model = tf.keras.models.load_model(MODEL_PATH, compile=False, safe_mode=False)
-print("✅ Model loaded with input shape:", model.input_shape)
+
+if not os.path.exists(MODEL_PATH):
+    raise FileNotFoundError(f"❌ Model file not found: '{MODEL_PATH}'")
+
+model = tf.keras.models.load_model(MODEL_PATH)
+print("✅ Model loaded successfully.")
 
 # Class labels
 CLASS_NAMES = [
@@ -29,44 +27,33 @@ CLASS_NAMES = [
     "sea",
 ]
 
-def predict_image_from_bytes(img_bytes, threshold=0.7, entropy_threshold=1.0):
-    # Open the image from bytes and convert to RGB
-    img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
-    img = img.resize((IMG_SIZE, IMG_SIZE))
-    
-    arr = tf.keras.utils.img_to_array(img)[None, ...]  # shape: (1, 224, 224, 3)
+def predict_image(img_path, threshold=0.7, entropy_threshold=1.0):
+    # Load and preprocess image
+    img = Image.open(img_path).convert("RGB").resize((224, 224))
+    arr = np.array(img)[None, ...]
     arr = preprocess_input(arr)
-    
+
+    # Predict
     preds = model.predict(arr, verbose=0)[0]
-    entropy = float(scipy.stats.entropy(preds))
+
+    # Calculate entropy
+    entropy = scipy.stats.entropy(preds)
+    print(f"Prediction entropy: {entropy:.3f}")
+
     top_idx = int(np.argmax(preds))
     confidence = float(preds[top_idx])
     label = CLASS_NAMES[top_idx]
 
+    # Use both confidence and entropy thresholds to reject unknowns
     if confidence < threshold or entropy > entropy_threshold:
-        return {
-            "label": "no_disaster_detected",
-            "confidence": confidence,
-            "entropy": entropy,
-            "accepted": False
-        }
+        print(f"⚠️ No disaster detected ")
+        return "no_disaster_detected", confidence
 
-    return {
-        "label": label,
-        "confidence": confidence,
-        "entropy": entropy,
-        "accepted": True
-    }
+    pretty_label = label.replace("_", " ").title()
+    print(f"✅ Prediction → {pretty_label} ({confidence:.2%} confidence)")
+    return label, confidence
 
-@app.post("/predict")
-async def predict(file: UploadFile = File(...)):
-    try:
-        img_bytes = await file.read()
-        result = predict_image_from_bytes(img_bytes)
-        return JSONResponse(content=result)
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
-
-# Optional: run locally
+# === Test the prediction ===
 # if __name__ == "__main__":
-#     uvicorn.run(app, host="0.0.0.0", port=8000)
+#     image_path = "flagged/din.jpg"  
+#     label, conf = predict_image(image_path)
