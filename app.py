@@ -30,12 +30,13 @@ CLASS_NAMES = [
 ]
 
 def predict_image_from_bytes(img_bytes, threshold=0.7, entropy_threshold=1.0):
-    # ✅ FIX: open image from bytes
-    img = Image.open(io.BytesIO(img_bytes)).convert("RGB").resize((IMG_SIZE, IMG_SIZE))
+    # Open the image from bytes and convert to RGB
+    img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+    img = img.resize((IMG_SIZE, IMG_SIZE))
     
-    arr = tf.keras.utils.img_to_array(img)[None, ...]  # (1, 224, 224, 3)
+    arr = tf.keras.utils.img_to_array(img)[None, ...]  # shape: (1, 224, 224, 3)
     arr = preprocess_input(arr)
-
+    
     preds = model.predict(arr, verbose=0)[0]
     entropy = float(scipy.stats.entropy(preds))
     top_idx = int(np.argmax(preds))
@@ -47,14 +48,14 @@ def predict_image_from_bytes(img_bytes, threshold=0.7, entropy_threshold=1.0):
             "label": "no_disaster_detected",
             "confidence": confidence,
             "entropy": entropy,
-            "accepted": False,
+            "accepted": False
         }
 
     return {
         "label": label,
         "confidence": confidence,
         "entropy": entropy,
-        "accepted": True,
+        "accepted": True
     }
 
 @app.post("/predict")
