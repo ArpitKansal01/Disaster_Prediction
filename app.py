@@ -28,23 +28,34 @@ CLASS_NAMES = [
 ]
 
 def predict_image(img_path, threshold=0.7, entropy_threshold=1.0):
-    # Load and preprocess image
-    img = Image.open(img_path).convert("RGB").resize((224, 224))
-    arr = np.array(img)[None, ...]
+    # Load image
+    img = Image.open(img_path)
+
+    # Ensure RGB
+    if img.mode != "RGB":
+        img = img.convert("RGB")
+
+    # Resize
+    img = img.resize((224, 224))
+
+    # Convert to array and preprocess
+    arr = np.array(img)
+    if arr.shape[-1] != 3:
+        arr = np.stack([arr]*3, axis=-1)  # Just in case
+    arr = arr[None, ...]  # Add batch dimension
     arr = preprocess_input(arr)
 
     # Predict
     preds = model.predict(arr, verbose=0)[0]
 
-    # Calculate entropy
-    entropy = scipy.stats.entropy(preds)
+    # Entropy
+    entropy = float(scipy.stats.entropy(preds))
     print(f"Prediction entropy: {entropy:.3f}")
 
     top_idx = int(np.argmax(preds))
     confidence = float(preds[top_idx])
     label = CLASS_NAMES[top_idx]
 
-    # Use both confidence and entropy thresholds to reject unknowns
     if confidence < threshold or entropy > entropy_threshold:
         print(f"⚠️ No disaster detected ")
         return "no_disaster_detected", confidence
@@ -52,7 +63,6 @@ def predict_image(img_path, threshold=0.7, entropy_threshold=1.0):
     pretty_label = label.replace("_", " ").title()
     print(f"✅ Prediction → {pretty_label} ({confidence:.2%} confidence)")
     return label, confidence
-
 # === Test the prediction ===
 # if __name__ == "__main__":
 #     image_path = "flagged/din.jpg"  
