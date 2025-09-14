@@ -6,13 +6,15 @@ import tensorflow as tf
 from tensorflow.keras.applications.efficientnet import preprocess_input
 import scipy.stats
 import io
+import uvicorn
 
 app = FastAPI()
 
 # Load model
+IMG_SIZE = 224
 MODEL_PATH = "disaster_classifier.keras"
 model = tf.keras.models.load_model(MODEL_PATH, compile=False, safe_mode=False)
-print(model.input_shape)
+print("✅ Model loaded with input shape:", model.input_shape)
 
 # Class labels
 CLASS_NAMES = [
@@ -28,34 +30,32 @@ CLASS_NAMES = [
 ]
 
 def predict_image_from_bytes(img_bytes, threshold=0.7, entropy_threshold=1.0):
-    img = Image.open(io.BytesIO(img_bytes)).convert("RGB").resize((224, 224))
-    arr = np.array(img)
-    print(f"Image shape before model: {arr.shape}")  # Should be (224, 224, 3)
-    arr = arr[None, ...]
+    # ✅ FIX: open image from bytes
+    img = Image.open(io.BytesIO(img_bytes)).convert("RGB").resize((IMG_SIZE, IMG_SIZE))
+    
+    arr = tf.keras.utils.img_to_array(img)[None, ...]  # (1, 224, 224, 3)
     arr = preprocess_input(arr)
-    print(f"Model input shape: {arr.shape}")  # Should be (1, 224, 224, 3)
+
     preds = model.predict(arr, verbose=0)[0]
-    entropy = scipy.stats.entropy(preds)
+    entropy = float(scipy.stats.entropy(preds))
     top_idx = int(np.argmax(preds))
     confidence = float(preds[top_idx])
     label = CLASS_NAMES[top_idx]
-    
+
     if confidence < threshold or entropy > entropy_threshold:
         return {
-    "label": "no_disaster_detected",
-    "confidence": float(confidence),
-    "entropy": float(entropy),
-    "accepted": False
-}
-
+            "label": "no_disaster_detected",
+            "confidence": confidence,
+            "entropy": entropy,
+            "accepted": False,
+        }
 
     return {
-    "label": str(label),
-    "confidence": float(confidence),  # Convert from np.float32 to Python float
-    "entropy": float(entropy),
-    "accepted": bool(True)
-}
-
+        "label": label,
+        "confidence": confidence,
+        "entropy": entropy,
+        "accepted": True,
+    }
 
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
@@ -65,3 +65,7 @@ async def predict(file: UploadFile = File(...)):
         return JSONResponse(content=result)
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+# Optional: run locally
+# if __name__ == "__main__":
+#     uvicorn.run(app, host="0.0.0.0", port=8000)
