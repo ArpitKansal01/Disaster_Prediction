@@ -11,7 +11,8 @@ app = FastAPI()
 
 # Load model
 MODEL_PATH = "disaster_classifier.keras"
-model = tf.keras.models.load_model(MODEL_PATH)
+model = tf.keras.models.load_model(MODEL_PATH, compile=False, safe_mode=False)
+print(model.input_shape)
 
 # Class labels
 CLASS_NAMES = [
@@ -28,8 +29,11 @@ CLASS_NAMES = [
 
 def predict_image_from_bytes(img_bytes, threshold=0.7, entropy_threshold=1.0):
     img = Image.open(io.BytesIO(img_bytes)).convert("RGB").resize((224, 224))
-    arr = np.array(img)[None, ...]
+    arr = np.array(img)
+    print(f"Image shape before model: {arr.shape}")  # Should be (224, 224, 3)
+    arr = arr[None, ...]
     arr = preprocess_input(arr)
+    print(f"Model input shape: {arr.shape}")  # Should be (1, 224, 224, 3)
     preds = model.predict(arr, verbose=0)[0]
     entropy = scipy.stats.entropy(preds)
     top_idx = int(np.argmax(preds))
