@@ -3,7 +3,7 @@ import numpy as np
 import io
 import tensorflow as tf
 
-MODEL_PATH = "my_model.keras"
+MODEL_PATH = "new_model_fixed1.keras"
 IMG_SIZE = 224
 
 # Load the model
