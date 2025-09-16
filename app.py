@@ -7,6 +7,7 @@ import tensorflow as tf
 from tensorflow.keras import layers
 from tensorflow.keras.models import Model
 from tensorflow.keras.applications import EfficientNetB0
+import scipy.stats
 
 MODEL_PATH = "disaster_classifier.keras"  # Path to your saved .keras model
 IMG_SIZE = 224
@@ -23,10 +24,9 @@ CLASS_NAMES = [
 ]
 
 # Build the model architecture from scratch to ensure a clean state.
-# IMPORTANT: Use weights=None to prevent automatic download of ImageNet weights.
 base_model = EfficientNetB0(
     include_top=False,
-    weights=None,  # This is the key change!
+    weights=None,
     input_shape=(IMG_SIZE, IMG_SIZE, 3)
 )
 base_model.trainable = False
@@ -50,7 +50,7 @@ def preprocess_image(image: Image.Image) -> np.ndarray:
     if image.mode != "RGB":
         image = image.convert("RGB")
     image = image.resize((IMG_SIZE, IMG_SIZE))
-    arr = np.array(image)[None, ...]  # shape: (1, H, W, 3)
+    arr = np.array(image)[None, ...]
     arr = tf.keras.applications.efficientnet.preprocess_input(arr)
     return arr
 
@@ -60,10 +60,33 @@ async def predict(file: UploadFile = File(...)):
         img = Image.open(file.file)
         arr = preprocess_image(img)
         preds = model.predict(arr, verbose=0)[0]
+        
         top_idx = int(np.argmax(preds))
         confidence = float(preds[top_idx])
+        label = CLASS_NAMES[top_idx]
+
+        # Use a confidence threshold to filter out low-confidence predictions
+        threshold = 0.70
+        
+        # Check if the predicted label is a disaster class
+        disaster_classes = ["damaged_buildings", "fallen_trees", "fire", "landslide", "flood"]
+        
+        # If the predicted label is a disaster class, apply a confidence check.
+        # This prevents low-confidence disaster predictions from being returned.
+        if label in disaster_classes and confidence < threshold:
+            label = "no_disaster_detected"
+        
+        # You can also use an entropy check for more robust uncertainty handling.
+        # Entropy measures the uncertainty of the prediction distribution.
+        # A high entropy value indicates the model is unsure.
+        entropy_threshold = 1.0  # Adjust as needed
+        entropy = scipy.stats.entropy(preds)
+        if entropy > entropy_threshold:
+            label = "no_disaster_detected"
+        
+        # Format the final result
         result = {
-            "predicted_class": CLASS_NAMES[top_idx],
+            "predicted_class": label,
             "confidence": f"{confidence:.2%}",
             "all_probabilities": {cls: float(preds[i]) for i, cls in enumerate(CLASS_NAMES)}
         }
