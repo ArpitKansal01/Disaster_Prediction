@@ -4,6 +4,7 @@ from PIL import Image
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.applications.efficientnet import preprocess_input
+from tensorflow.keras import Input, Model
 import scipy.stats
 import io
 import uvicorn
@@ -14,7 +15,7 @@ app = FastAPI()
 # ----------------------
 # Load model
 # ----------------------
-MODEL_PATH = "my_model.keras"
+MODEL_PATH = "new_model.keras"
 
 if not os.path.exists(MODEL_PATH):
     raise FileNotFoundError(f"❌ Model file not found: '{MODEL_PATH}'")
