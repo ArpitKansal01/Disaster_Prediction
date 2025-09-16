@@ -3,3 +3,4 @@ NumPy
 Pillow
 SciPy
 uvicorn
+fastapi
