@@ -41,24 +41,11 @@ IMG_SIZE = model.input_shape[1]  # ensures exact match with model
 # Helper functions
 # ----------------------
 def preprocess_image(img_bytes):
-    """Convert uploaded bytes to model-ready numpy array"""
-    img = Image.open(io.BytesIO(img_bytes))
-
-    # Force RGB
-    if img.mode != "RGB":
-        img = img.convert("RGB")
-
-    img = img.resize((IMG_SIZE, IMG_SIZE))
-    arr = np.array(img, dtype=np.float32)
-
-    # Safety check: ensure 3 channels
-    if arr.ndim == 2:
-        arr = np.stack([arr]*3, axis=-1)
-    elif arr.shape[-1] != 3:
-        arr = arr[:, :, :3]  # crop extra channels if any
-
-    arr = arr[None, ...]  # add batch dimension
+    img = Image.open(io.BytesIO(img_bytes)).convert("L")  # <-- grayscale
+    img = img.resize((224, 224))
+    arr = np.array(img, dtype=np.float32)[..., np.newaxis]  # add channel axis
     arr = preprocess_input(arr)
+    arr = arr[None, ...]  # batch dimension
     return arr
 
 def predict_image_from_bytes(img_bytes, threshold=0.7, entropy_threshold=1.0):
