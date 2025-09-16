@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse
 # -----------------------------
 # 1️⃣ Model Setup
 # -----------------------------
-MODEL_PATH = "disaster_modoel.keras"
+MODEL_PATH = "disaster_model.keras"
 IMG_SIZE = 224
 CONF_THRESHOLD = 0.7       # Minimum confidence to accept prediction
 ENTROPY_THRESHOLD = 1.0    # Maximum entropy to accept prediction
