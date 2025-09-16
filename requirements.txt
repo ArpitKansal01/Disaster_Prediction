@@ -4,3 +4,4 @@ Pillow
 SciPy
 uvicorn
 fastapi
+python-multipart
