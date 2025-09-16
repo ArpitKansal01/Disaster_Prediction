@@ -9,13 +9,12 @@ import io
 import uvicorn
 import os
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  
 app = FastAPI()
 
 # ----------------------
 # Load model
 # ----------------------
-MODEL_PATH = "disaster_classifier.keras"
+MODEL_PATH = "my_model.keras"
 
 if not os.path.exists(MODEL_PATH):
     raise FileNotFoundError(f"❌ Model file not found: '{MODEL_PATH}'")
