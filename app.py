@@ -21,10 +21,11 @@ CLASS_NAMES = [
     "sea",
 ]
 
-# Build the model architecture from scratch to ensure a clean state.
+# Build the model architecture from scratch.
+# IMPORTANT: Use weights=None to prevent automatic download of ImageNet weights.
 base_model = EfficientNetB0(
     include_top=False,
-    weights="imagenet",
+    weights=None,  # This is the key change!
     input_shape=(IMG_SIZE, IMG_SIZE, 3)
 )
 base_model.trainable = False
@@ -37,9 +38,8 @@ x = layers.Dropout(0.2)(x)
 outputs = layers.Dense(len(CLASS_NAMES), activation="softmax")(x)
 model = tf.keras.Model(inputs, outputs)
 
-# Load ONLY the weights from the saved file.
+# Now, load ONLY the weights from your fine-tuned model.
 model.load_weights(MODEL_PATH)
-model.trainable = False  # Set trainable to False again for inference
 
 app = FastAPI(title="Disaster Image Classifier API")
 
