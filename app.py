@@ -1,22 +1,12 @@
 # app.py
-import os
-import numpy as np
-from PIL import Image
-import tensorflow as tf
-from tensorflow.keras.applications.efficientnet import preprocess_input
-import scipy.stats
 from fastapi import FastAPI, File, UploadFile
 from fastapi.responses import JSONResponse
+from PIL import Image
+import numpy as np
+import tensorflow as tf
 
-# -----------------------------
-# 1️⃣ Model Setup
-# -----------------------------
-MODEL_PATH = "disaster_model.keras"
+MODEL_PATH = "best_model.h5"  # path to your saved model
 IMG_SIZE = 224
-CONF_THRESHOLD = 0.7       # Minimum confidence to accept prediction
-ENTROPY_THRESHOLD = 1.0    # Maximum entropy to accept prediction
-
-# Class labels
 CLASS_NAMES = [
     "damaged_buildings",
     "fallen_trees",
@@ -29,62 +19,37 @@ CLASS_NAMES = [
     "sea",
 ]
 
-if not os.path.exists(MODEL_PATH):
-    raise FileNotFoundError(f"❌ Model file not found: '{MODEL_PATH}'")
+# Load model once
+model = tf.keras.models.load_model(MODEL_PATH, compile=False)
 
-model = tf.keras.models.load_model(
-    "disaster_model.keras",
-    custom_objects={"Functional": tf.keras.Model}  # or custom layers if needed
-)
-print("✅ Model loaded successfully.")
+app = FastAPI(title="Disaster Image Classifier API")
 
-app = FastAPI(title="Safe Disaster Image Classifier API")
-
-# -----------------------------
-# 2️⃣ Utility Function
-# -----------------------------
 def preprocess_image(image: Image.Image) -> np.ndarray:
-    """Convert image to RGB, resize and preprocess for EfficientNet."""
+    """Converts image to RGB, resizes, and preprocesses for EfficientNetB0."""
     if image.mode != "RGB":
         image = image.convert("RGB")
     image = image.resize((IMG_SIZE, IMG_SIZE))
-    arr = np.array(image)[None, ...]  # Shape: (1, H, W, 3)
-    arr = preprocess_input(arr)
+    arr = np.array(image)[None, ...]  # shape: (1, H, W, 3)
+    arr = tf.keras.applications.efficientnet.preprocess_input(arr)
     return arr
 
-def predict_safe(arr: np.ndarray, threshold=CONF_THRESHOLD, entropy_threshold=ENTROPY_THRESHOLD):
-    """Predict with confidence and entropy checks."""
-    preds = model.predict(arr, verbose=0)[0]
-    pred_entropy = float(scipy.stats.entropy(preds))
-    
-    top_idx = int(np.argmax(preds))
-    confidence = float(preds[top_idx])
-    label = CLASS_NAMES[top_idx]
-
-    if confidence < threshold or pred_entropy > entropy_threshold:
-        return "no_disaster_detected", confidence, pred_entropy
-
-    return label, confidence, pred_entropy
-
-# -----------------------------
-# 3️⃣ API Endpoints
-# -----------------------------
-@app.get("/")
-async def root():
-    return {"message": "Safe Disaster Image Classifier API is running!"}
-
 @app.post("/predict")
-async def predict(file: UploadFile = File(...), threshold: float = CONF_THRESHOLD, entropy_threshold: float = ENTROPY_THRESHOLD):
+async def predict(file: UploadFile = File(...)):
     try:
         img = Image.open(file.file)
         arr = preprocess_image(img)
-        label, confidence, pred_entropy = predict_safe(arr, threshold, entropy_threshold)
-        
+        preds = model.predict(arr, verbose=0)[0]
+        top_idx = int(np.argmax(preds))
+        confidence = float(preds[top_idx])
         result = {
-            "predicted_class": label,
+            "predicted_class": CLASS_NAMES[top_idx],
             "confidence": f"{confidence:.2%}",
-            "entropy": pred_entropy
+            "all_probabilities": {cls: float(preds[i]) for i, cls in enumerate(CLASS_NAMES)}
         }
         return JSONResponse(content=result)
     except Exception as e:
         return JSONResponse(content={"error": str(e)}, status_code=400)
+
+@app.get("/")
+async def root():
+    return {"message": "Disaster Image Classifier API is running!"}
