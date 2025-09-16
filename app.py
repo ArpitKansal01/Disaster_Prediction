@@ -41,12 +41,13 @@ IMG_SIZE = model.input_shape[1]  # ensures exact match with model
 # Helper functions
 # ----------------------
 def preprocess_image(img_bytes):
-    img = Image.open(io.BytesIO(img_bytes)).convert("L")  # <-- grayscale
+    img = Image.open(io.BytesIO(img_bytes)).convert("RGB")  # keep 3 channels
     img = img.resize((224, 224))
-    arr = np.array(img, dtype=np.float32)[..., np.newaxis]  # add channel axis
+    arr = np.array(img, dtype=np.float32)  # shape (224, 224, 3)
     arr = preprocess_input(arr)
-    arr = arr[None, ...]  # batch dimension
+    arr = arr[None, ...]  # batch dimension -> (1, 224, 224, 3)
     return arr
+
 
 def predict_image_from_bytes(img_bytes, threshold=0.7, entropy_threshold=1.0):
     """Predict class and return structured result"""
