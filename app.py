@@ -37,16 +37,15 @@ CLASS_NAMES = [
     "sea",
 ]
 
-IMG_SIZE = model.input_shape[1]  # Usually 224
-
+IMG_SIZE = 224
 # ----------------------
 # Helper function
 # ----------------------
 def preprocess_image(img_bytes):
     """Load image bytes → RGB → resize → numpy array → EfficientNet preprocess"""
-    img = Image.open(io.BytesIO(img_bytes)).convert("RGB")  # Force 3 channels
-    img = img.resize((IMG_SIZE, IMG_SIZE))
-    arr = np.array(img)[None, ...]  # Shape: (1, IMG_SIZE, IMG_SIZE, 3)
+    img = Image.open(io.BytesIO(img_bytes)).convert("RGB")  # Always 3 channels
+    img = img.resize((224, 224))  # Force 224x224 instead of using model.input_shape[1]
+    arr = np.array(img, dtype=np.float32)[None, ...]  # Shape: (1, 224, 224, 3)
     arr = preprocess_input(arr)
     return arr
 
