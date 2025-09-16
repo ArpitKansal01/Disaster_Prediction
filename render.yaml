@@ -1,7 +1,7 @@
 services:
   - type: web
-    name: disaster-classifier
+    name: disaster-classifier-api
     env: python
-    buildCommand: "pip install -r requirements.txt"
-    startCommand: "uvicorn app:app --host 0.0.0.0 --port $PORT"
-    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT
+    plan: free # change to 'starter' or higher if model is big
