@@ -13,7 +13,7 @@ app = FastAPI()
 # ----------------------
 # Load model
 # ----------------------
-MODEL_PATH = "new_model.h5"
+MODEL_PATH = "new_model.keras"
 if not os.path.exists(MODEL_PATH):
     raise FileNotFoundError(f"❌ Model file not found: '{MODEL_PATH}'")
 
