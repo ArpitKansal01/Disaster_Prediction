@@ -5,7 +5,7 @@ from PIL import Image
 import numpy as np
 import tensorflow as tf
 
-MODEL_PATH = "best_model.h5"  # path to your saved model
+MODEL_PATH = "disaster_model.h5"  # path to your saved model
 IMG_SIZE = 224
 CLASS_NAMES = [
     "damaged_buildings",
