@@ -2,3 +2,4 @@ TensorFlow
 NumPy
 Pillow
 SciPy
+uvicorn
