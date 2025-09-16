@@ -1,0 +1,4 @@
+TensorFlow
+NumPy
+Pillow
+SciPy
