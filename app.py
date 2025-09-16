@@ -4,6 +4,8 @@ from fastapi.responses import JSONResponse
 from PIL import Image
 import numpy as np
 import tensorflow as tf
+from tensorflow.keras import layers
+from tensorflow.keras.applications import EfficientNetB0
 
 MODEL_PATH = "disaster_model.h5"  # path to your saved model
 IMG_SIZE = 224
@@ -19,8 +21,25 @@ CLASS_NAMES = [
     "sea",
 ]
 
-# Load model once
-model = tf.keras.models.load_model(MODEL_PATH, compile=False)
+# Build the model architecture from scratch to ensure a clean state.
+base_model = EfficientNetB0(
+    include_top=False,
+    weights="imagenet",
+    input_shape=(IMG_SIZE, IMG_SIZE, 3)
+)
+base_model.trainable = False
+
+inputs = layers.Input(shape=(IMG_SIZE, IMG_SIZE, 3))
+x = tf.keras.applications.efficientnet.preprocess_input(inputs)
+x = base_model(x, training=False)
+x = layers.GlobalAveragePooling2D()(x)
+x = layers.Dropout(0.2)(x)
+outputs = layers.Dense(len(CLASS_NAMES), activation="softmax")(x)
+model = tf.keras.Model(inputs, outputs)
+
+# Load ONLY the weights from the saved file.
+model.load_weights(MODEL_PATH)
+model.trainable = False  # Set trainable to False again for inference
 
 app = FastAPI(title="Disaster Image Classifier API")
 
