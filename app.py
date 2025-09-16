@@ -5,9 +5,10 @@ from PIL import Image
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers
+from tensorflow.keras.models import Model
 from tensorflow.keras.applications import EfficientNetB0
 
-MODEL_PATH = "disaster_model.h5"  # path to your saved model
+MODEL_PATH = "disaster_model.h5"
 IMG_SIZE = 224
 CLASS_NAMES = [
     "damaged_buildings",
@@ -21,25 +22,32 @@ CLASS_NAMES = [
     "sea",
 ]
 
-# Build the model architecture from scratch.
-# IMPORTANT: Use weights=None to prevent automatic download of ImageNet weights.
-base_model = EfficientNetB0(
-    include_top=False,
-    weights=None,  # This is the key change!
-    input_shape=(IMG_SIZE, IMG_SIZE, 3)
-)
-base_model.trainable = False
+# Load the entire model from the file, which includes architecture and weights.
+# The previous attempt to build and load weights separately is failing.
+# This approach is generally more reliable for models saved with tf.keras.Model.save().
+try:
+    model = tf.keras.models.load_model(MODEL_PATH)
+except Exception as e:
+    # If loading the entire model fails, try the rebuild-and-load-weights approach as a fallback.
+    print(f"Failed to load entire model: {e}. Attempting to rebuild and load weights.")
+    # Rebuild the same model architecture from scratch
+    base_model = EfficientNetB0(
+        include_top=False,
+        weights=None, # This is crucial to prevent loading imagenet weights
+        input_shape=(IMG_SIZE, IMG_SIZE, 3)
+    )
+    base_model.trainable = False
 
-inputs = layers.Input(shape=(IMG_SIZE, IMG_SIZE, 3))
-x = tf.keras.applications.efficientnet.preprocess_input(inputs)
-x = base_model(x, training=False)
-x = layers.GlobalAveragePooling2D()(x)
-x = layers.Dropout(0.2)(x)
-outputs = layers.Dense(len(CLASS_NAMES), activation="softmax")(x)
-model = tf.keras.Model(inputs, outputs)
+    inputs = layers.Input(shape=(IMG_SIZE, IMG_SIZE, 3))
+    x = tf.keras.applications.efficientnet.preprocess_input(inputs)
+    x = base_model(x, training=False)
+    x = layers.GlobalAveragePooling2D()(x)
+    x = layers.Dropout(0.2)(x)
+    outputs = layers.Dense(len(CLASS_NAMES), activation="softmax")(x)
+    model = Model(inputs, outputs)
 
-# Now, load ONLY the weights from your fine-tuned model.
-model.load_weights(MODEL_PATH)
+    # Load only the weights from the saved file.
+    model.load_weights(MODEL_PATH)
 
 app = FastAPI(title="Disaster Image Classifier API")
 
@@ -48,7 +56,7 @@ def preprocess_image(image: Image.Image) -> np.ndarray:
     if image.mode != "RGB":
         image = image.convert("RGB")
     image = image.resize((IMG_SIZE, IMG_SIZE))
-    arr = np.array(image)[None, ...]  # shape: (1, H, W, 3)
+    arr = np.array(image)[None, ...]
     arr = tf.keras.applications.efficientnet.preprocess_input(arr)
     return arr
 
