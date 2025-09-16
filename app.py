@@ -19,7 +19,9 @@ if not os.path.exists(MODEL_PATH):
 
 model = tf.keras.models.load_model(MODEL_PATH, compile=False)
 print("✅ Model loaded successfully:", model.input_shape)
-
+print("✅ Model loaded from:", MODEL_PATH)
+print("   → Input shape:", model.input_shape)
+print("   → Output shape:", model.output_shape)
 # ----------------------
 # Class labels
 # ----------------------
