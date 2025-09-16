@@ -13,7 +13,7 @@ app = FastAPI()
 # ----------------------
 # Load model
 # ----------------------
-MODEL_PATH = "new_model_fixed.keras"
+MODEL_PATH = "new_model_fixed1.keras"
 if not os.path.exists(MODEL_PATH):
     raise FileNotFoundError(f"❌ Model file not found: '{MODEL_PATH}'")
 
@@ -102,7 +102,7 @@ async def predict(file: UploadFile = File(...)):
 # ----------------------
 # Optional local run
 # ----------------------
-if __name__ == "__main__":
-    import os, uvicorn
-    port = int(os.environ.get("PORT", 8000))  # <- This line makes Render happy
-    uvicorn.run("app:app", host="0.0.0.0", port=port)
+# if __name__ == "__main__":
+#     import os, uvicorn
+#     port = int(os.environ.get("PORT", 8000))  # <- This line makes Render happy
+#     uvicorn.run("app:app", host="0.0.0.0", port=port)
