@@ -32,7 +32,10 @@ CLASS_NAMES = [
 if not os.path.exists(MODEL_PATH):
     raise FileNotFoundError(f"❌ Model file not found: '{MODEL_PATH}'")
 
-model = tf.keras.models.load_model(MODEL_PATH)
+model = tf.keras.models.load_model(
+    "disaster_model.keras",
+    custom_objects={"Functional": tf.keras.Model}  # or custom layers if needed
+)
 print("✅ Model loaded successfully.")
 
 app = FastAPI(title="Safe Disaster Image Classifier API")
